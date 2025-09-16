@@ -1,0 +1,233 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Courier New', monospace;
+    background: #2c3e50;
+    color: #ecf0f1;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+header h1 {
+    color: #3498db;
+    font-size: 2.5em;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.emulator-container {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.gameboy {
+    background: #95a5a6;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+    min-width: 320px;
+}
+
+.screen-container {
+    background: #1a252f;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+#screen {
+    background: #9bbc0f;
+    border: 3px solid #34495e;
+    border-radius: 5px;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    transform: scale(2);
+    transform-origin: center;
+}
+
+.controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.dpad {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.dpad-btn {
+    position: absolute;
+    width: 25px;
+    height: 25px;
+    background: #34495e;
+    border: 2px solid #2c3e50;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.dpad-btn:hover {
+    background: #4a6741;
+}
+
+.dpad-btn:active {
+    background: #27ae60;
+    transform: scale(0.95);
+}
+
+.up { top: 0; left: 50%; transform: translateX(-50%); }
+.down { bottom: 0; left: 50%; transform: translateX(-50%); }
+.left { left: 0; top: 50%; transform: translateY(-50%); }
+.right { right: 0; top: 50%; transform: translateY(-50%); }
+
+.action-buttons {
+    display: flex;
+    gap: 15px;
+}
+
+.action-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #e74c3c;
+    border: 3px solid #c0392b;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.action-btn:hover {
+    background: #c0392b;
+}
+
+.action-btn:active {
+    background: #a93226;
+    transform: scale(0.95);
+}
+
+.system-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.system-btn {
+    padding: 5px 10px;
+    background: #7f8c8d;
+    border: 2px solid #5d6d7e;
+    color: white;
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.1s;
+}
+
+.system-btn:hover {
+    background: #5d6d7e;
+}
+
+.system-btn:active {
+    background: #34495e;
+    transform: scale(0.95);
+}
+
+.sidebar {
+    background: #34495e;
+    padding: 20px;
+    border-radius: 10px;
+    min-width: 250px;
+    height: fit-content;
+}
+
+.sidebar h3 {
+    color: #3498db;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #5d6d7e;
+    padding-bottom: 5px;
+}
+
+.sidebar > div {
+    margin-bottom: 20px;
+}
+
+#rom-input {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 5px;
+    background: #2c3e50;
+    border: 1px solid #5d6d7e;
+    color: #ecf0f1;
+    border-radius: 3px;
+}
+
+button {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 5px;
+    background: #3498db;
+    border: none;
+    color: white;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+button:hover {
+    background: #2980b9;
+}
+
+button:active {
+    background: #21618c;
+}
+
+#debug-info div {
+    margin-bottom: 5px;
+    font-size: 12px;
+}
+
+#volume {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.pressed {
+    background: #27ae60 !important;
+    transform: scale(0.95) !important;
+}
+
+@media (max-width: 768px) {
+    .emulator-container {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    #screen {
+        transform: scale(1.5);
+    }
+    
+    .controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+}
