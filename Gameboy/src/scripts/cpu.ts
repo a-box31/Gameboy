@@ -1,4 +1,4 @@
-// import Memory from "./memory";
+import Memory from "./memory";
 // import Timer from "./timer";
 // import APU from "./sound/apu";
 // import Screen from "./display/screen";
@@ -11,13 +11,13 @@
 // // CPU class
 class CPU {
   gameboy;
-//   r;
-//   clock;
+  r;
+  clock;
 //   gpu: GPU;
 //   apu: APU;
 //   input;
 //   timer: Timer;
-//   memory: Memory;
+  memory: Memory;
 //   IME = false;
 //   isHalted = false;
 //   isPaused = false;
@@ -31,10 +31,15 @@ class CPU {
 
   constructor(gameboy: unknown) {
     this.gameboy = gameboy;
-    // this.r = { A: 0, F: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0, pc: 0, sp: 0 };
-    // this.clock = { c: 0, serial: 0 };
+    this.r = { A: 0, F: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0, pc: 0, sp: 0 };
+    this.clock = { c: 0, serial: 0 };
 
-    // this.createDevices();
+    this.memory = new Memory(this);
+    // this.timer = new Timer(this, this.memory);
+    // this.apu = new APU(this.memory);
+
+    // this.enableSerial = 0;
+    // this.serialHandler = new ConsoleSerial();
   }
 
 //   static INTERRUPTS = {
@@ -62,15 +67,6 @@ class CPU {
 //     },
 //   };
 
-//   createDevices() {
-//     this.memory = new Memory(this);
-//     this.timer = new Timer(this, this.memory);
-//     this.apu = new APU(this.memory);
-
-//     this.enableSerial = 0;
-//     this.serialHandler = new ConsoleSerial();
-//   }
-
 //   reset() {
 //     this.memory.reset();
 //     this.r = {
@@ -91,32 +87,32 @@ class CPU {
 //     this.memory.setRomData(data);
 //   }
 
-//   getRamSize() {
-//     let size = 0;
-//     switch (this.memory.rb(0x149)) {
-//       case 1:
-//         size = 2048;
-//         break;
-//       case 2:
-//         size = 2048 * 4;
-//         break;
-//       case 3:
-//         size = 2048 * 16;
-//         break;
-//     }
+  getRamSize() {
+    let size = 0;
+    switch (this.memory.rb(0x149)) {
+      case 1:
+        size = 2048;
+        break;
+      case 2:
+        size = 2048 * 4;
+        break;
+      case 3:
+        size = 2048 * 16;
+        break;
+    }
 
-//     return size;
-//   }
+    return size;
+  }
 
-//   getGameName() {
-//     var name = "";
-//     for (var i = 0x134; i < 0x143; i++) {
-//       var char = this.memory.rb(i) || 32;
-//       name += String.fromCharCode(char);
-//     }
+  getGameName() {
+    let name = "";
+    for (let i = 0x134; i < 0x143; i++) {
+      const char = this.memory.rb(i) || 32;
+      name += String.fromCharCode(char);
+    }
 
-//     return name;
-//   }
+    return name;
+  }
 
 //   // Start the execution of the emulator
 //   run() {
