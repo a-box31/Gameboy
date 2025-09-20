@@ -1,17 +1,29 @@
-import React, {useState} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
+import RomFileReader from './scripts/rom/file_reader'
+import { Gameboy } from './scripts/gameboy'
+
 import './App.scss'
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
+  const [reader, setReader] = useState<RomFileReader | null>(null);
+  const [gameboy, setGameboy] = useState<Gameboy | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const handleROMUpload = () => {
+  useEffect(() => {
     if (file) {
+      setReader(new RomFileReader(file));
       console.log('File selected:', file);
-      
-    } else {
-      console.log('No file selected');
     }
-  };
+  }, [file]);
+
+  // const handleROMUpload = () => {
+  //   if (file) {
+  //     console.log('File selected:', file);
+  //   } else {
+  //     console.log('No file selected');
+  //   }
+  // };
 
   return (
     <>
@@ -33,8 +45,11 @@ function App() {
             id="file"
             name="file"
           />
-          <button onClick={ handleROMUpload} >Upload</button>
+          {/* <button onClick={ handleROMUpload} >Upload</button> */}
         </form>
+        <div id="emulator">
+          <canvas ref={canvasRef} id="screen" width="160" height="144"></canvas>
+        </div>
       </div>
     </>
   )

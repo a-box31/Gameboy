@@ -1,33 +1,26 @@
-import { RomReader } from "./rom";
-
 // A RomFileReader is able to load a local file from an input element
 //
 // Expects to be provided a file input element,
 // or will try to find one with the "file" DOM ID
+type DataFunction = (data: Uint8Array) => void;
+
 class RomFileReader implements RomReader {
-  domElement: HTMLElement;
-  callback: Function;
-
-  constructor(el?: HTMLElement) {
-    this.domElement = el || document.getElementById("file");
-    if (!this.domElement) {
-      throw "The RomFileReader needs a valid input element.";
+  callback?: DataFunction;
+  
+  constructor(file: File) {
+    if (file) {
+      this.loadFromFile(file);
     }
-
-    let self = this;
-    this.domElement.addEventListener("change", function (e) {
-      self.loadFromFile((e.target as HTMLInputElement).files[0]);
-    });
   }
 
   // The callback argument will be called when a file is successfully
   // read, with the data as argument (Uint8Array)
-  setCallback(onLoadCallback: Function) {
+  setCallback(onLoadCallback: DataFunction) {
     this.callback = onLoadCallback;
   }
 
   // Automatically called when the DOM input is provided with a file
-  loadFromFile(file) {
+  loadFromFile(file: File) {
     if (file === undefined) {
       return;
     }
@@ -38,10 +31,15 @@ class RomFileReader implements RomReader {
       cb && cb(new Uint8Array(fr.result as ArrayBuffer));
     };
     fr.onerror = function (e) {
-      console.log("Error reading the file", e.target.error.code);
+      const errorCode =
+        e.target && e.target.error ? e.target.error.code : "Unknown";
+      console.log("Error reading the file", errorCode);
     };
     fr.readAsArrayBuffer(file);
   }
 }
 
+export interface RomReader {
+  setCallback(fn: Function): void;
+}
 export default RomFileReader;

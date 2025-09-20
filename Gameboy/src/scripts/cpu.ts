@@ -1,8 +1,7 @@
 import Memory from "./memory";
 // import Timer from "./timer";
 import APU from "./sound/apu";
-// import Screen from "./display/screen";
-// import GPU from "./display/gpu";
+import GPU from "./display/gpu";
 // import Util from "./util";
 // import { ConsoleSerial, SerialInterface } from "./serial";
 import { cpuOps } from "./instructions";
@@ -13,21 +12,21 @@ class CPU {
   gameboy;
   r;
   clock;
-//   gpu: GPU;
+  gpu?: GPU;
   apu: APU;
 //   input;
 //   timer: Timer;
   memory: Memory;
 //   IME = false;
   isHalted = false;
-//   isPaused = false;
-//   usingBootRom = false;
+  isPaused = false;
+  usingBootRom = false;
 
 //   SERIAL_INTERNAL_INSTR = 512; // instr to wait per bit if internal clock
 //   enableSerial = 0;
 //   serialHandler: SerialInterface;
 
-//   nextFrameTimer: ReturnType<typeof setTimeout>;
+  nextFrameTimer?: ReturnType<typeof setTimeout>;
 
   constructor(gameboy: unknown) {
     this.gameboy = gameboy;
@@ -67,25 +66,25 @@ class CPU {
     },
   };
 
-//   reset() {
-//     this.memory.reset();
-//     this.r = {
-//       A: 0x01,
-//       F: 0,
-//       B: 0xff,
-//       C: 0x13,
-//       D: 0,
-//       E: 0xc1,
-//       H: 0x84,
-//       L: 0x03,
-//       pc: 0,
-//       sp: 0xfffe,
-//     };
-//   }
+  reset() {
+    this.memory.reset();
+    this.r = {
+      A: 0x01,
+      F: 0,
+      B: 0xff,
+      C: 0x13,
+      D: 0,
+      E: 0xc1,
+      H: 0x84,
+      L: 0x03,
+      pc: 0,
+      sp: 0xfffe,
+    };
+  }
 
-//   loadRom(data) {
-//     this.memory.setRomData(data);
-//   }
+  loadRom(data: Uint8Array) {
+    this.memory.setRomData(data);
+  }
 
   getRamSize() {
     let size = 0;
@@ -114,67 +113,67 @@ class CPU {
     return name;
   }
 
-//   // Start the execution of the emulator
-//   run() {
-//     if (this.usingBootRom) {
-//       this.r.pc = 0x0000;
-//     } else {
-//       this.r.pc = 0x0100;
-//     }
-//     this.frame();
-//   }
+  // Start the execution of the emulator
+  run() {
+    if (this.usingBootRom) {
+      this.r.pc = 0x0000;
+    } else {
+      this.r.pc = 0x0100;
+    }
+    this.frame();
+  }
 
-//   stop() {
-//     clearTimeout(this.nextFrameTimer);
-//   }
+  stop() {
+    clearTimeout(this.nextFrameTimer);
+  }
 
-//   // Fetch-and-execute loop
-//   // Will execute instructions for the duration of a frame
-//   //
-//   // The screen unit will notify the vblank period which
-//   // is considered the end of a frame
-//   //
-//   // The function is called on a regular basis with a timeout
-//   frame() {
-//     if (!this.isPaused) {
-//       this.nextFrameTimer = setTimeout(
-//         this.frame.bind(this),
-//         1000 / Screen.physics.FREQUENCY
-//       );
-//     }
+  // Fetch-and-execute loop
+  // Will execute instructions for the duration of a frame
+  //
+  // The screen unit will notify the vblank period which
+  // is considered the end of a frame
+  //
+  // The function is called on a regular basis with a timeout
+  frame() {
+    if (!this.isPaused) {
+      this.nextFrameTimer = setTimeout(
+        this.frame.bind(this),
+        1000 / Screen.physics.FREQUENCY
+      );
+    }
 
-//     try {
-//       var vblank = false;
-//       while (!vblank) {
-//         var oldInstrCount = this.clock.c;
-//         if (!this.isHalted) {
-//           let opcode = this.fetchOpcode();
-//           opcodeMap[opcode](this);
-//           this.r.F &= 0xf0; // tmp fix
+    try {
+      var vblank = false;
+      while (!vblank) {
+        var oldInstrCount = this.clock.c;
+        if (!this.isHalted) {
+          let opcode = this.fetchOpcode();
+          opcodeMap[opcode](this);
+          this.r.F &= 0xf0; // tmp fix
 
-//           if (this.enableSerial) {
-//             var instr = this.clock.c - oldInstrCount;
-//             this.clock.serial += instr;
-//             if (this.clock.serial >= 8 * this.SERIAL_INTERNAL_INSTR) {
-//               this.endSerialTransfer();
-//             }
-//           }
-//         } else {
-//           this.clock.c += 4;
-//         }
+          if (this.enableSerial) {
+            var instr = this.clock.c - oldInstrCount;
+            this.clock.serial += instr;
+            if (this.clock.serial >= 8 * this.SERIAL_INTERNAL_INSTR) {
+              this.endSerialTransfer();
+            }
+          }
+        } else {
+          this.clock.c += 4;
+        }
 
-//         var elapsed = this.clock.c - oldInstrCount;
-//         vblank = this.gpu.update(elapsed);
-//         this.timer.update(elapsed);
-//         this.input.update();
-//         this.apu.update(elapsed);
-//         this.checkInterrupt();
-//       }
-//       this.clock.c = 0;
-//     } catch (e) {
-//       this.gameboy.handleException(e);
-//     }
-//   }
+        var elapsed = this.clock.c - oldInstrCount;
+        vblank = this.gpu.update(elapsed);
+        this.timer.update(elapsed);
+        this.input.update();
+        this.apu.update(elapsed);
+        this.checkInterrupt();
+      }
+      this.clock.c = 0;
+    } catch (e) {
+      this.gameboy.handleException(e);
+    }
+  }
 
 //   fetchOpcode(): number {
 //     let opcode = this.memory.rb(this.r.pc++);
@@ -209,6 +208,17 @@ class CPU {
   unhalt() {
     this.isHalted = false;
   }
+
+  enableSerialTransfer() {
+    // Serial transfer implementation placeholder
+    // this.enableSerial = 1;
+    // this.clock.serial = 0;
+  }
+
+  resetDivTimer() {
+    // Timer reset implementation placeholder
+    // this.timer.resetDiv();
+  }
 //   pause() {
 //     this.isPaused = true;
 //   }
@@ -237,7 +247,7 @@ class CPU {
 //   }
 
   // Set an interrupt flag
-  requestInterrupt(type) {
+  requestInterrupt(type: number) {
     let IFval = this.memory.rb(0xff0f);
     IFval |= 1 << type;
     this.memory.wb(0xff0f, IFval);

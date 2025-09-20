@@ -1,8 +1,10 @@
-class Rom {
-  gameboy;
-  data: Uint8Array;
+import type {Gameboy} from "../gameboy";
 
-  constructor(gameboy, romReader?) {
+class Rom {
+  gameboy: Gameboy;
+  data?: Uint8Array;
+
+  constructor(gameboy: Gameboy, romReader?: RomReader) {
     this.gameboy = gameboy;
     if (romReader) {
       this.addReader(romReader);
@@ -34,5 +36,4 @@ function validate(data: Uint8Array) {
 export interface RomReader {
   setCallback(fn: Function): void;
 }
-
 export default Rom;

@@ -47,9 +47,17 @@ abstract class MBC {
     return instance;
   }
 
+  // Universal methods for all MBC types
+  readRam(addr: number): number {
+    const value = this.extRam.manageRead(addr - 0xa000);
+    return value !== undefined ? value : 0;
+  }
+  loadRam(game: string, size: number): void {
+    this.extRam.loadRam(game, size);
+  }
+
+  // Abstract methods
   abstract manageWrite(addr: number, value: number): void;
-  abstract loadRam(game: string, size: number): void;
-  abstract readRam(addr: number): number;
 
 }
 
@@ -99,13 +107,6 @@ class MBC1 extends MBC {
         break;
     }
   }
-  loadRam(game: string, size: number): void {
-    this.extRam.loadRam(game, size);
-  }
-  readRam(addr: number): number {
-    const value = this.extRam.manageRead(addr - 0xa000);
-    return value !== undefined ? value : 0;
-  }
 }
 
 class MBC3 extends MBC {
@@ -145,13 +146,6 @@ class MBC3 extends MBC {
         break;
     }
   }
-  readRam(addr: number): number {
-    const value = this.extRam.manageRead(addr - 0xa000);
-    return value !== undefined ? value : 0;
-  }
-  loadRam(game: string, size: number): void {
-    this.extRam.loadRam(game, size);
-  }
 }
 
 // declare MBC5 for compatibility with most cartriges
@@ -166,13 +160,6 @@ class MBC0 extends MBC {
       this.extRam.manageWrite(addr - 0xa000, value);
       this.extRam.saveRamData();
     }
-  }
-  readRam(addr: number): number {
-    const value = this.extRam.manageRead(addr - 0xa000);
-    return value !== undefined ? value : 0;
-  }
-  loadRam(game: string, size: number): void {
-    this.extRam.loadRam(game, size);
   }
 }
 

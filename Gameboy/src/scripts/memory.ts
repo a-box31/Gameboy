@@ -151,17 +151,45 @@ class Memory extends Array {
           // OAM DMA transfer
           this.dmaTransfer(value);
         }
+        // GPU register writes
+        if (this.cpu.gpu) {
+          if (addr == 0xff40) {
+            // LCDC - LCD Control
+            this.cpu.gpu.writeLCDC(value);
+          } else if (addr == 0xff42) {
+            // SCY - Scroll Y
+            this.cpu.gpu.writeScrollY(value);
+          } else if (addr == 0xff43) {
+            // SCX - Scroll X
+            this.cpu.gpu.writeScrollX(value);
+          } else if (addr == 0xff47) {
+            // BGP - Background Palette
+            this.cpu.gpu.writeBGP(value);
+          } else if (addr == 0xff48) {
+            // OBP0 - Object Palette 0
+            this.cpu.gpu.writeOBP0(value);
+          } else if (addr == 0xff49) {
+            // OBP1 - Object Palette 1
+            this.cpu.gpu.writeOBP1(value);
+          } else if (addr == 0xff4a) {
+            // WY - Window Y
+            this.cpu.gpu.writeWindowY(value);
+          } else if (addr == 0xff4b) {
+            // WX - Window X
+            this.cpu.gpu.writeWindowX(value);
+          }
+        }
       }
     }
   }
 
 //   // Start a DMA transfer (OAM data from cartrige to RAM)
-//   dmaTransfer(startAddressPrefix) {
-//     var startAddress = startAddressPrefix << 8;
-//     for (var i = 0; i < 0xa0; i++) {
-//       this[Memory.addresses.OAM_START + i] = this[startAddress + i];
-//     }
-//   }
+  dmaTransfer(startAddressPrefix: number) {
+    const startAddress = startAddressPrefix << 8;
+    for (let i = 0; i < 0xa0; i++) {
+      this[Memory.addresses.OAM_START + i] = this[startAddress + i];
+    }
+  }
 }
 
 // Bitmasks for audio addresses reads
