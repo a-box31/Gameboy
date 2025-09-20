@@ -1,5 +1,5 @@
-import Rom from "./rom/rom";
-import RomFileReader from "./rom/file_reader";
+// import Rom from "./rom/rom";
+// import RomFileReader from "./rom/file_reader";
 // import RomDropFileReader from "./rom/drop_file_reader";
 // import RomAjaxReader from "./rom/ajax_reader";
 import Keyboard from "./input/keyboard";
@@ -160,7 +160,7 @@ constructor(canvas: HTMLCanvasElement, options?: Partial<GameboyOptions>) {
 
 export {
   Gameboy,
-  RomFileReader,
+  // RomFileReader,
 //   RomDropFileReader,
 //   RomAjaxReader,
   Util,

@@ -1,6 +1,9 @@
 import CPU from "./cpu";
 import type { GameboyOptions } from "./gameboy";
 
+type register = "A" | "F" | "B" | "C" | "D" | "E" | "H" | "L" | "pc" | "sp";
+
+
 // Utility functions
 const Util = {
   // Add to the first argument the properties of all other arguments
@@ -25,8 +28,8 @@ const Util = {
   },
   getRegAddr: function (
     p: CPU,
-    r1: "A" | "F" | "B" | "C" | "D" | "E" | "H" | "L" | "pc" | "sp",
-    r2: "A" | "F" | "B" | "C" | "D" | "E" | "H" | "L" | "pc" | "sp"
+    r1: register,
+    r2: register
   ) {
     return Util.makeword(p.r[r1], p.r[r2]);
   },
@@ -46,5 +49,6 @@ const Util = {
     return (byte >> index) & 1;
   },
 };
+
 
 export default Util;

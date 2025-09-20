@@ -1,4 +1,3 @@
-// import MBC from "./mbc";
 import CPU from "./cpu";
 import MBC from "./mbc";
 
@@ -109,50 +108,52 @@ class Memory extends Array {
 //     }
 //   }
 
-//   // Memory read proxy function
-//   // Used to centralize memory read access
-//   rb(addr: number): number {
-//     if (addr >= 0xff10 && addr < 0xff40) {
-//       var mask = apuMask[addr - 0xff10];
-//       return this[addr] | mask;
-//     }
-//     if (addr >= 0xa000 && addr < 0xc000) {
-//       return this.mbc.readRam(addr);
-//     }
-//     return this[addr];
-//   }
+  // Memory read proxy function
+  // Used to centralize memory read access
+  rb(addr: number): number {
+    if (addr >= 0xff10 && addr < 0xff40) {
+      const mask = apuMask[addr - 0xff10];
+      return this[addr] | mask;
+    }
+    if (this.mbc && addr >= 0xa000 && addr < 0xc000) {
+      return this.mbc.readRam(addr) ?? 0;
+    }
+    return this[addr];
+  }
 
-//   // Memory write proxy function
-//   // Used to centralize memory writes and delegate specific behaviour
-//   // to the correct units
-//   wb(addr: number, value: number) {
-//     if (addr < 0x8000 || (addr >= 0xa000 && addr < 0xc000)) {
-//       // MBC
-//       this.mbc.manageWrite(addr, value);
-//     } else if (addr >= 0xff10 && addr <= 0xff3f) {
-//       // sound registers
-//       this.cpu.apu.manageWrite(addr, value);
-//     } else if (addr == 0xff00) {
-//       // input register
-//       this[addr] = (this[addr] & 0x0f) | (value & 0x30);
-//     } else {
-//       this[addr] = value;
-//       if ((addr & 0xff00) == 0xff00) {
-//         if (addr == 0xff02) {
-//           if (value & 0x80) {
-//             this.cpu.enableSerialTransfer();
-//           }
-//         }
-//         if (addr == 0xff04) {
-//           this.cpu.resetDivTimer();
-//         }
-//         if (addr == 0xff46) {
-//           // OAM DMA transfer
-//           this.dmaTransfer(value);
-//         }
-//       }
-//     }
-//   }
+  // Memory write proxy function
+  // Used to centralize memory writes and delegate specific behaviour
+  // to the correct units
+  wb(addr: number, value: number) {
+    if (addr < 0x8000 || (addr >= 0xa000 && addr < 0xc000)) {
+      // MBC
+      if (this.mbc) {
+        this.mbc.manageWrite(addr, value);
+      }
+    } else if (addr >= 0xff10 && addr <= 0xff3f) {
+      // sound registers
+      this.cpu.apu.manageWrite(addr, value);
+    } else if (addr == 0xff00) {
+      // input register
+      this[addr] = (this[addr] & 0x0f) | (value & 0x30);
+    } else {
+      this[addr] = value;
+      if ((addr & 0xff00) == 0xff00) {
+        if (addr == 0xff02) {
+          if (value & 0x80) {
+            this.cpu.enableSerialTransfer();
+          }
+        }
+        if (addr == 0xff04) {
+          this.cpu.resetDivTimer();
+        }
+        if (addr == 0xff46) {
+          // OAM DMA transfer
+          this.dmaTransfer(value);
+        }
+      }
+    }
+  }
 
 //   // Start a DMA transfer (OAM data from cartrige to RAM)
 //   dmaTransfer(startAddressPrefix) {

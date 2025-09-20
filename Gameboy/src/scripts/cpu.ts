@@ -1,11 +1,11 @@
 import Memory from "./memory";
 // import Timer from "./timer";
-// import APU from "./sound/apu";
+import APU from "./sound/apu";
 // import Screen from "./display/screen";
 // import GPU from "./display/gpu";
 // import Util from "./util";
 // import { ConsoleSerial, SerialInterface } from "./serial";
-// import { cpuOps } from "./instructions";
+import { cpuOps } from "./instructions";
 // import { opcodeMap } from "./opcodes";
 
 // // CPU class
@@ -14,12 +14,12 @@ class CPU {
   r;
   clock;
 //   gpu: GPU;
-//   apu: APU;
+  apu: APU;
 //   input;
 //   timer: Timer;
   memory: Memory;
 //   IME = false;
-//   isHalted = false;
+  isHalted = false;
 //   isPaused = false;
 //   usingBootRom = false;
 
@@ -36,36 +36,36 @@ class CPU {
 
     this.memory = new Memory(this);
     // this.timer = new Timer(this, this.memory);
-    // this.apu = new APU(this.memory);
+    this.apu = new APU(this.memory);
 
     // this.enableSerial = 0;
     // this.serialHandler = new ConsoleSerial();
   }
 
-//   static INTERRUPTS = {
-//     VBLANK: 0,
-//     LCDC: 1,
-//     TIMER: 2,
-//     SERIAL: 3,
-//     HILO: 4,
-//   };
-//   static interruptRoutines = {
-//     0: function (p) {
-//       cpuOps.RSTn(p, 0x40);
-//     },
-//     1: function (p) {
-//       cpuOps.RSTn(p, 0x48);
-//     },
-//     2: function (p) {
-//       cpuOps.RSTn(p, 0x50);
-//     },
-//     3: function (p) {
-//       cpuOps.RSTn(p, 0x58);
-//     },
-//     4: function (p) {
-//       cpuOps.RSTn(p, 0x60);
-//     },
-//   };
+  static INTERRUPTS = {
+    VBLANK: 0,
+    LCDC: 1,
+    TIMER: 2,
+    SERIAL: 3,
+    HILO: 4,
+  };
+  static interruptRoutines = {
+    0: function (p: CPU) {
+      cpuOps.RSTn(p, 0x40);
+    },
+    1: function (p: CPU) {
+      cpuOps.RSTn(p, 0x48);
+    },
+    2: function (p: CPU) {
+      cpuOps.RSTn(p, 0x50);
+    },
+    3: function (p: CPU) {
+      cpuOps.RSTn(p, 0x58);
+    },
+    4: function (p: CPU) {
+      cpuOps.RSTn(p, 0x60);
+    },
+  };
 
 //   reset() {
 //     this.memory.reset();
@@ -206,9 +206,9 @@ class CPU {
 //   halt() {
 //     this.isHalted = true;
 //   }
-//   unhalt() {
-//     this.isHalted = false;
-//   }
+  unhalt() {
+    this.isHalted = false;
+  }
 //   pause() {
 //     this.isPaused = true;
 //   }
@@ -236,13 +236,13 @@ class CPU {
 //     }
 //   }
 
-//   // Set an interrupt flag
-//   requestInterrupt(type) {
-//     var IFval = this.memory.rb(0xff0f);
-//     IFval |= 1 << type;
-//     this.memory.wb(0xff0f, IFval);
-//     this.unhalt();
-//   }
+  // Set an interrupt flag
+  requestInterrupt(type) {
+    let IFval = this.memory.rb(0xff0f);
+    IFval |= 1 << type;
+    this.memory.wb(0xff0f, IFval);
+    this.unhalt();
+  }
 
 //   isInterruptEnable(type) {
 //     return Util.readBit(this.memory.rb(0xffff), type) != 0;
