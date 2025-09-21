@@ -1,5 +1,5 @@
 // import Rom from "./rom/rom";
-import RomFileReader from "./rom/file_reader";
+import RomFileReader, { type RomReader } from "./rom/file_reader";
 // import RomDropFileReader from "./rom/drop_file_reader";
 // import RomAjaxReader from "./rom/ajax_reader";
 import Keyboard from "./input/keyboard";
@@ -9,14 +9,18 @@ import GPU from "./display/gpu";
 import Screen from "./display/screen";
 import Rom from "./rom/rom";
 import UnimplementedException from "./exception";
-// import Input, { JoypadDevice } from "./input/input";
+import Input, { type JoypadDevice } from "./input/input";
 // import UnimplementedException from "./exception";
 // import Debug from "./debug";
 
 export interface GameboyOptions {
   // your properties here
-  [key: string]: unknown;
-  
+  pad: { class: typeof Keyboard; mapping: unknown };
+  zoom: number;
+  romReaders: Array<RomReader>;
+  statusContainerId: string;
+  gameNameContainerId: string;
+  errorContainerId: string;
 }
 
 const defaultOptions: GameboyOptions = {
@@ -37,8 +41,8 @@ const defaultOptions: GameboyOptions = {
 class Gameboy {
   options: GameboyOptions;
   cpu: CPU;
-  screen: Screen;
-  gpu: GPU;
+  // screen: Screen;
+  // gpu: GPU;
 //   input: Input;
 //   pad: JoypadDevice;
 
@@ -49,19 +53,19 @@ class Gameboy {
 constructor(canvas: HTMLCanvasElement, options?: Partial<GameboyOptions>) {
     options = options || {};
     this.options = Util.extend({}, defaultOptions, options);
-
+// 
     const cpu: CPU = new CPU(this);
-    const screen: Screen = new Screen(canvas, this.options.zoom as number || 1);
-    const gpu: GPU = new GPU(screen, cpu);
-    cpu.gpu = gpu;
+    // const screen: Screen = new Screen(canvas, this.options.zoom as number || 1);
+    // const gpu: GPU = new GPU(screen, cpu);
+    // cpu.gpu = gpu;
 
-    // const pad: JoypadDevice = new this.options.pad.class(this.options.pad.mapping);
-    // const input: Input = new Input(cpu, pad, canvas);
+    const pad: JoypadDevice = new this.options.pad.class(this.options.pad.mapping);
+    const input: Input = new Input(cpu, pad, canvas);
     // cpu.input = input;
 
     this.cpu = cpu;
-    this.screen = screen;
-    this.gpu = gpu;
+    // this.screen = screen;
+    // this.gpu = gpu;
     // this.input = input;
     // this.pad = pad;
 
@@ -79,18 +83,16 @@ constructor(canvas: HTMLCanvasElement, options?: Partial<GameboyOptions>) {
 }
 
   // Create the ROM object and bind one or more readers
-  createRom(readers: any[]) {
-    var rom = new Rom(this);
+  createRom(readers: RomReader[]) {
+    const rom = new Rom(this);
     if (readers.length == 0) {
       // add the default rom reader
-      var romReader = new RomFileReader();
+      const romReader = new RomFileReader();
       rom.addReader(romReader);
     } else {
-      for (var i in readers) {
-        if (readers.hasOwnProperty(i)) {
-          rom.addReader(readers[i]);
-        }
-      }
+      readers.forEach((reader) => {
+        rom.addReader(reader);
+      });
     }
   }
 

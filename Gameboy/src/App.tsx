@@ -1,29 +1,36 @@
 import React, {useState, useEffect, useRef} from 'react'
 import RomFileReader from './scripts/rom/file_reader'
-import { Gameboy } from './scripts/gameboy'
+import { Gameboy, type GameboyOptions } from './scripts/gameboy'
 
 import './App.scss'
+import Keyboard from './scripts/input/keyboard';
 
 function App() {
   const [file, setFile] = useState<File | null>(null);
-  const [reader, setReader] = useState<RomFileReader | null>(null);
+  const [readers, setReaders] = useState<RomFileReader[]>([]);
   const [gameboy, setGameboy] = useState<Gameboy | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (file) {
-      setReader(new RomFileReader(file));
-      console.log('File selected:', file);
+      setReaders([new RomFileReader(file)]);
     }
   }, [file]);
 
-  // const handleROMUpload = () => {
-  //   if (file) {
-  //     console.log('File selected:', file);
-  //   } else {
-  //     console.log('No file selected');
-  //   }
-  // };
+  useEffect(() => {
+    if (canvasRef.current) {
+      // Create the Gameboy instance
+      const gb = new Gameboy(canvasRef.current as HTMLCanvasElement, {
+        pad: { class: Keyboard, mapping: null },
+        zoom: 1,
+        romReaders: readers,
+        statusContainerId: "status",
+        gameNameContainerId: "game-name",
+        errorContainerId: "error"
+      } as GameboyOptions);
+      setGameboy(gb);
+    }
+  }, [readers]);
 
   return (
     <>
@@ -48,7 +55,10 @@ function App() {
           {/* <button onClick={ handleROMUpload} >Upload</button> */}
         </form>
         <div id="emulator">
+          <div id="game-name-container"></div>
+          <div id="status-container"></div>
           <canvas ref={canvasRef} id="screen" width="160" height="144"></canvas>
+          <div id="error-container"></div>
         </div>
       </div>
     </>

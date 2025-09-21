@@ -7,7 +7,7 @@ type DataFunction = (data: Uint8Array) => void;
 class RomFileReader implements RomReader {
   callback?: DataFunction;
   
-  constructor(file: File) {
+  constructor(file?: File) {
     if (file) {
       this.loadFromFile(file);
     }
@@ -24,11 +24,15 @@ class RomFileReader implements RomReader {
     if (file === undefined) {
       return;
     }
-    let fr = new FileReader();
-    let cb = this.callback;
+    const fr = new FileReader();
+    const cb = this.callback;
+    
 
     fr.onload = function () {
-      cb && cb(new Uint8Array(fr.result as ArrayBuffer));
+      if (cb) {
+        console.log("File read successfully, size: " + fr.result);
+        cb(new Uint8Array(fr.result as ArrayBuffer));
+      }
     };
     fr.onerror = function (e) {
       const errorCode =
@@ -40,6 +44,6 @@ class RomFileReader implements RomReader {
 }
 
 export interface RomReader {
-  setCallback(fn: Function): void;
+  setCallback(fn: (data: Uint8Array) => void): void;
 }
 export default RomFileReader;
