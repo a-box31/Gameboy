@@ -12,14 +12,13 @@ class Rom {
   }
 
   addReader(romReader: RomReader) {
-    let self = this;
-    romReader.setCallback(function (data: Uint8Array) {
+    romReader.setCallback((data: Uint8Array) => {
       if (!validate(data)) {
-        self.gameboy.error("The file is not a valid GameBoy ROM.");
+        this.gameboy.error("The file is not a valid GameBoy ROM.");
         return;
       }
-      self.data = data;
-      self.gameboy.startRom(self);
+      this.data = data;
+      this.gameboy.startRom(this);
     });
   }
 }
@@ -34,6 +33,6 @@ function validate(data: Uint8Array) {
 }
 
 export interface RomReader {
-  setCallback(fn: Function): void;
+  setCallback(fn: (data: Uint8Array) => void): void;
 }
 export default Rom;

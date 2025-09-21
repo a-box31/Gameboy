@@ -1,5 +1,6 @@
 import CPU from "../cpu";
 import Memory from "../memory";
+import { type JoypadKey } from "./keyboard";
 
 // The Input management system
 //
@@ -10,9 +11,9 @@ import Memory from "../memory";
 
 export interface JoypadDevice {
   init(
-    canvas: HTMLElement,
-    onPress: (key: keyof typeof Input.keys) => void,
-    onRelease: (key: keyof typeof Input.keys) => void
+    canvas: HTMLCanvasElement,
+    onPress: (key: JoypadKey) => void,
+    onRelease: (key: JoypadKey) => void
   ): void;
 }
 
@@ -21,7 +22,7 @@ class Input {
   memory: Memory;
   P1: number;
   state: number;
-  interruptQueue: Array<any>;
+  interruptQueue: Array<{ ly: number; key: keyof typeof Input.keys }>;
   constructor(cpu: CPU, pad: JoypadDevice, canvas: HTMLElement) {
     this.cpu = cpu;
     this.memory = cpu.memory;
@@ -54,7 +55,7 @@ pressKey(key: keyof typeof Input.keys): void {
   }
 
   update() {
-    if (this.interruptQueue.length > 0) {
+    if (this.interruptQueue.length > 0 && this.cpu.gpu) {
       // check for interrupt to fire
       if (this.interruptQueue[0].ly === this.memory.rb(this.cpu.gpu.LY)) {
         const v = this.interruptQueue.shift() as { ly: number; key: keyof typeof Input.keys };

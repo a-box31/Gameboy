@@ -2,7 +2,15 @@ import type { JoypadDevice } from "./input";
 
 // Keyboard listener
 // Does the mapping between the keyboard and the Input class
-type JoypadKey = "START" | "SELECT" | "B" | "A" | "DOWN" | "UP" | "LEFT" | "RIGHT";
+export type JoypadKey =
+  | "START"
+  | "SELECT"
+  | "B"
+  | "A"
+  | "DOWN"
+  | "UP"
+  | "LEFT"
+  | "RIGHT";
 
 class Keyboard implements JoypadDevice {
   onPress?: (key: JoypadKey) => void;
@@ -11,7 +19,7 @@ class Keyboard implements JoypadDevice {
   // Initialize the keyboard listeners and set up the callbacks
   // for button press / release
   init(
-    canvas: HTMLElement,
+    canvas: HTMLCanvasElement,
     onPress: (key: JoypadKey) => void,
     onRelease: (key: JoypadKey) => void
   ) {
@@ -21,16 +29,15 @@ class Keyboard implements JoypadDevice {
       canvas.setAttribute("tabIndex", "1");
     }
 
-    let self = this;
-    canvas.addEventListener("keydown", function (e: KeyboardEvent) {
-      self.managePress(e.code);
+    canvas.addEventListener("keydown", (e: KeyboardEvent) => {
+      this.managePress(e.code);
       if (e.code !== "Tab") {
         // only keep Tab active
         e.preventDefault();
       }
     });
-    canvas.addEventListener("keyup", function (e: KeyboardEvent) {
-      self.manageRelease(e.code);
+    canvas.addEventListener("keyup", (e: KeyboardEvent) => {
+      this.manageRelease(e.code);
       if (e.code !== "Tab") {
         // only keep Tab active
         e.preventDefault();
@@ -55,13 +62,13 @@ class Keyboard implements JoypadDevice {
   // Transform a keyboard event.code into a key of the Input.keys object
   translateKey(code: string): JoypadKey | undefined {
     switch (code) {
-      case "KeyG":
+      case "KeyX":
         return "A";
-      case "KeyB":
+      case "KeyZ":
         return "B";
-      case "KeyH":
+      case "KeyC":
         return "START";
-      case "KeyN":
+      case "KeyV":
         return "SELECT";
       case "ArrowLeft":
         return "LEFT";
@@ -75,8 +82,6 @@ class Keyboard implements JoypadDevice {
         return undefined;
     }
   }
-
 }
-
 
 export default Keyboard;
