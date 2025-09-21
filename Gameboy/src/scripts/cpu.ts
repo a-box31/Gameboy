@@ -3,11 +3,13 @@ import Memory from "./memory";
 import APU from "./sound/apu";
 import GPU from "./display/gpu";
 // import Util from "./util";
-// import { ConsoleSerial, SerialInterface } from "./serial";
+import { ConsoleSerial, SerialInterface } from "./serial";
 import { cpuOps } from "./instructions";
-// import { opcodeMap } from "./opcodes";
+import { opcodeMap } from "./opcodes";
+import Screen from "./display/screen";
+import Input from "./input/input";
 
-// // CPU class
+// CPU class
 class CPU {
   gameboy;
   r;
@@ -17,14 +19,14 @@ class CPU {
 //   input;
 //   timer: Timer;
   memory: Memory;
-//   IME = false;
+  IME = false;
   isHalted = false;
   isPaused = false;
   usingBootRom = false;
 
-//   SERIAL_INTERNAL_INSTR = 512; // instr to wait per bit if internal clock
-//   enableSerial = 0;
-//   serialHandler: SerialInterface;
+  SERIAL_INTERNAL_INSTR = 512; // instr to wait per bit if internal clock
+  enableSerial = 0;
+  serialHandler: SerialInterface;
 
   nextFrameTimer?: ReturnType<typeof setTimeout>;
 
@@ -37,7 +39,7 @@ class CPU {
     // this.timer = new Timer(this, this.memory);
     this.apu = new APU(this.memory);
 
-    // this.enableSerial = 0;
+    this.enableSerial = 0;
     // this.serialHandler = new ConsoleSerial();
   }
 
@@ -148,7 +150,7 @@ class CPU {
         var oldInstrCount = this.clock.c;
         if (!this.isHalted) {
           let opcode = this.fetchOpcode();
-          opcodeMap[opcode](this);
+          (opcodeMap as Record<number, (p: CPU) => void>)[opcode](this);
           this.r.F &= 0xf0; // tmp fix
 
           if (this.enableSerial) {
@@ -175,36 +177,36 @@ class CPU {
     }
   }
 
-//   fetchOpcode(): number {
-//     let opcode = this.memory.rb(this.r.pc++);
+  fetchOpcode(): number {
+    let opcode = this.memory.rb(this.r.pc++);
 
-//     if (!opcodeMap[opcode]) {
-//       this.stop();
-//       throw (
-//         "Unknown opcode " +
-//         opcode.toString(16) +
-//         " at address " +
-//         (this.r.pc - 1).toString(16) +
-//         ", stopping execution..."
-//       );
-//     }
+    if (!(opcode in (opcodeMap as Record<number, (p: CPU) => void>))) {
+      this.stop();
+      throw (
+        "Unknown opcode " +
+        opcode.toString(16) +
+        " at address " +
+        (this.r.pc - 1).toString(16) +
+        ", stopping execution..."
+      );
+    }
 
-//     return opcode;
-//   }
+    return opcode;
+  }
 
-//   // read register
-//   rr(register) {
-//     return this.r[register];
-//   }
+  // read register
+  rr(register: keyof typeof this.r) {
+    return this.r[register];
+  }
 
-//   // write register
-//   wr(register, value) {
-//     this.r[register] = value;
-//   }
+  // write register
+  wr(register: keyof typeof this.r, value: number) {
+    this.r[register] = value;
+  }
 
-//   halt() {
-//     this.isHalted = true;
-//   }
+  halt() {
+    this.isHalted = true;
+  }
   unhalt() {
     this.isHalted = false;
   }
@@ -270,13 +272,13 @@ class CPU {
 //     this.clock.serial = 0;
 //   }
 
-//   endSerialTransfer() {
-//     this.enableSerial = 0;
-//     var data = this.memory.rb(0xff01);
-//     this.memory.wb(0xff02, 0);
-//     this.serialHandler.out(data);
-//     this.memory.wb(0xff01, this.serialHandler.in());
-//   }
+  endSerialTransfer() {
+    this.enableSerial = 0;
+    var data = this.memory.rb(0xff01);
+    this.memory.wb(0xff02, 0);
+    this.serialHandler.out(data);
+    this.memory.wb(0xff01, this.serialHandler.in());
+  }
 
 //   resetDivTimer() {
 //     this.timer.resetDiv();
