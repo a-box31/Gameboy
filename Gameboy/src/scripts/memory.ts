@@ -4,7 +4,7 @@ import MBC from "./mbc";
 // Memory unit
 class Memory extends Array {
   MEM_SIZE = 65536; // 64KB
-  // MBCtype = 0;
+  // MBCtype = 0;  // This is unused
   banksize = 0x4000;
   rom?: Uint8Array;
   mbc?: MBC;
@@ -69,44 +69,44 @@ class Memory extends Array {
     }
   }
 
-//   // Video ram accessor
-//   vram(address) {
-//     if (
-//       address < Memory.addresses.VRAM_START ||
-//       address > Memory.addresses.VRAM_END
-//     ) {
-//       throw "VRAM access in out of bounds address " + address;
-//     }
+  // Video ram accessor
+  vram(address: number) {
+    if (
+      address < Memory.addresses.VRAM_START ||
+      address > Memory.addresses.VRAM_END
+    ) {
+      throw "VRAM access in out of bounds address " + address;
+    }
 
-//     return this[address];
-//   }
+    return this[address];
+  }
 
-//   // OAM ram accessor
-//   oamram(address) {
-//     if (
-//       address < Memory.addresses.OAM_START ||
-//       address > Memory.addresses.OAM_END
-//     ) {
-//       throw "OAMRAM access in out of bounds address " + address;
-//     }
+  // OAM ram accessor
+  oamram(address: number) {
+    if (
+      address < Memory.addresses.OAM_START ||
+      address > Memory.addresses.OAM_END
+    ) {
+      throw "OAMRAM access in out of bounds address " + address;
+    }
 
-//     return this[address];
-//   }
+    return this[address];
+  }
 
-//   // Device ram accessor
-//   deviceram(address: number, value?: number) {
-//     if (
-//       address < Memory.addresses.DEVICE_START ||
-//       address > Memory.addresses.DEVICE_END
-//     ) {
-//       throw "Device RAM access in out of bounds address " + address;
-//     }
-//     if (typeof value === "undefined") {
-//       return this[address];
-//     } else {
-//       this[address] = value;
-//     }
-//   }
+  // Device ram accessor
+  deviceram(address: number, value?: number) {
+    if (
+      address < Memory.addresses.DEVICE_START ||
+      address > Memory.addresses.DEVICE_END
+    ) {
+      throw "Device RAM access in out of bounds address " + address;
+    }
+    if (typeof value === "undefined") {
+      return this[address];
+    } else {
+      this[address] = value;
+    }
+  }
 
   // Memory read proxy function
   // Used to centralize memory read access
@@ -151,39 +151,11 @@ class Memory extends Array {
           // OAM DMA transfer
           this.dmaTransfer(value);
         }
-        // GPU register writes
-        if (this.cpu.gpu) {
-          if (addr == 0xff40) {
-            // LCDC - LCD Control
-            this.cpu.gpu.writeLCDC(value);
-          } else if (addr == 0xff42) {
-            // SCY - Scroll Y
-            this.cpu.gpu.writeScrollY(value);
-          } else if (addr == 0xff43) {
-            // SCX - Scroll X
-            this.cpu.gpu.writeScrollX(value);
-          } else if (addr == 0xff47) {
-            // BGP - Background Palette
-            this.cpu.gpu.writeBGP(value);
-          } else if (addr == 0xff48) {
-            // OBP0 - Object Palette 0
-            this.cpu.gpu.writeOBP0(value);
-          } else if (addr == 0xff49) {
-            // OBP1 - Object Palette 1
-            this.cpu.gpu.writeOBP1(value);
-          } else if (addr == 0xff4a) {
-            // WY - Window Y
-            this.cpu.gpu.writeWindowY(value);
-          } else if (addr == 0xff4b) {
-            // WX - Window X
-            this.cpu.gpu.writeWindowX(value);
-          }
-        }
       }
     }
   }
 
-//   // Start a DMA transfer (OAM data from cartrige to RAM)
+  // Start a DMA transfer (OAM data from cartrige to RAM)
   dmaTransfer(startAddressPrefix: number) {
     const startAddress = startAddressPrefix << 8;
     for (let i = 0; i < 0xa0; i++) {

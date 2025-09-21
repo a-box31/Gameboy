@@ -30,7 +30,7 @@ class GPU {
   buffer: number[];
   tileBuffer: number[];
 
-  constructor(screen, cpu) {
+  constructor(screen: Screen, cpu: CPU) {
     this.cpu = cpu;
     this.screen = screen;
     this.vram = cpu.memory.vram.bind(cpu.memory);
@@ -51,7 +51,7 @@ class GPU {
     LENGTH: 0x0400, // 1024 bytes = 32*32
   };
 
-  update(clockElapsed) {
+  update(clockElapsed: number) {
     this.clock += clockElapsed;
     var vblank = false;
 
@@ -114,7 +114,7 @@ class GPU {
     }
   }
 
-  setMode(mode) {
+  setMode(mode: number) {
     this.mode = mode;
     var newSTAT = this.deviceram(this.STAT);
     newSTAT &= 0xfc;
@@ -129,7 +129,7 @@ class GPU {
   }
 
   // Push one scanline into the main buffer
-  drawScanLine(line) {
+  drawScanLine(line: number) {
     var LCDC = this.deviceram(this.LCDC);
     var enable = Util.readBit(LCDC, 7);
     if (enable) {
@@ -150,7 +150,7 @@ class GPU {
     this.screen.render(this.buffer);
   }
 
-  drawBackground(LCDC, line, lineBuffer) {
+  drawBackground(LCDC: number, line: number, lineBuffer: number[]) {
     if (!Util.readBit(LCDC, 0)) {
       return;
     }
@@ -202,7 +202,7 @@ class GPU {
   }
 
   // Copy a tile line from a tileBuffer to a line buffer, at a given x position
-  copyBGTileLine(lineBuffer, tileBuffer, x) {
+  copyBGTileLine(lineBuffer: number[], tileBuffer: number[], x: number) {
     // copy tile line to buffer
     for (var k = 0; k < 8; k++, x++) {
       if (x < 0 || x >= Screen.physics.WIDTH) continue;

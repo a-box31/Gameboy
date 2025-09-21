@@ -213,8 +213,8 @@ class CPU {
 
   enableSerialTransfer() {
     // Serial transfer implementation placeholder
-    // this.enableSerial = 1;
-    // this.clock.serial = 0;
+    this.enableSerial = 1;
+    this.clock.serial = 0;
   }
 
   resetDivTimer() {
