@@ -3,7 +3,7 @@ import Memory from "./memory";
 import APU from "./sound/apu";
 import GPU from "./display/gpu";
 // import Util from "./util";
-import { ConsoleSerial, SerialInterface } from "./serial";
+import type { SerialInterface } from "./serial";
 import { cpuOps } from "./instructions";
 import { opcodeMap } from "./opcodes";
 import Screen from "./display/screen";
@@ -16,7 +16,7 @@ class CPU {
   clock;
   gpu?: GPU;
   apu: APU;
-//   input;
+  input?: Input;
 //   timer: Timer;
   memory: Memory;
   IME = false;
@@ -26,7 +26,7 @@ class CPU {
 
   SERIAL_INTERNAL_INSTR = 512; // instr to wait per bit if internal clock
   enableSerial = 0;
-  serialHandler: SerialInterface;
+  serialHandler?: SerialInterface;
 
   nextFrameTimer?: ReturnType<typeof setTimeout>;
 
@@ -115,15 +115,15 @@ class CPU {
     return name;
   }
 
-  // Start the execution of the emulator
-  run() {
-    if (this.usingBootRom) {
-      this.r.pc = 0x0000;
-    } else {
-      this.r.pc = 0x0100;
-    }
-    this.frame();
-  }
+  // // Start the execution of the emulator
+  // run() {
+  //   if (this.usingBootRom) {
+  //     this.r.pc = 0x0000;
+  //   } else {
+  //     this.r.pc = 0x0100;
+  //   }
+  //   this.frame();
+  // }
 
   stop() {
     clearTimeout(this.nextFrameTimer);
@@ -136,63 +136,63 @@ class CPU {
   // is considered the end of a frame
   //
   // The function is called on a regular basis with a timeout
-  frame() {
-    if (!this.isPaused) {
-      this.nextFrameTimer = setTimeout(
-        this.frame.bind(this),
-        1000 / Screen.physics.FREQUENCY
-      );
-    }
+  // frame() {
+  //   if (!this.isPaused) {
+  //     this.nextFrameTimer = setTimeout(
+  //       this.frame.bind(this),
+  //       1000 / Screen.physics.FREQUENCY
+  //     );
+  //   }
 
-    try {
-      var vblank = false;
-      while (!vblank) {
-        var oldInstrCount = this.clock.c;
-        if (!this.isHalted) {
-          let opcode = this.fetchOpcode();
-          (opcodeMap as Record<number, (p: CPU) => void>)[opcode](this);
-          this.r.F &= 0xf0; // tmp fix
+  //   try {
+  //     var vblank = false;
+  //     while (!vblank) {
+  //       var oldInstrCount = this.clock.c;
+  //       if (!this.isHalted) {
+  //         let opcode = this.fetchOpcode();
+  //         (opcodeMap as Record<number, (p: CPU) => void>)[opcode](this);
+  //         this.r.F &= 0xf0; // tmp fix
 
-          if (this.enableSerial) {
-            var instr = this.clock.c - oldInstrCount;
-            this.clock.serial += instr;
-            if (this.clock.serial >= 8 * this.SERIAL_INTERNAL_INSTR) {
-              this.endSerialTransfer();
-            }
-          }
-        } else {
-          this.clock.c += 4;
-        }
+  //         if (this.enableSerial) {
+  //           var instr = this.clock.c - oldInstrCount;
+  //           this.clock.serial += instr;
+  //           if (this.clock.serial >= 8 * this.SERIAL_INTERNAL_INSTR) {
+  //             this.endSerialTransfer();
+  //           }
+  //         }
+  //       } else {
+  //         this.clock.c += 4;
+  //       }
 
-        var elapsed = this.clock.c - oldInstrCount;
-        vblank = this.gpu.update(elapsed);
-        this.timer.update(elapsed);
-        this.input.update();
-        this.apu.update(elapsed);
-        this.checkInterrupt();
-      }
-      this.clock.c = 0;
-    } catch (e) {
-      this.gameboy.handleException(e);
-    }
-  }
+  //       var elapsed = this.clock.c - oldInstrCount;
+  //       vblank = this.gpu.update(elapsed);
+  //       this.timer.update(elapsed);
+  //       this.input.update();
+  //       this.apu.update(elapsed);
+  //       this.checkInterrupt();
+  //     }
+  //     this.clock.c = 0;
+  //   } catch (e) {
+  //     this.gameboy.handleException(e);
+  //   }
+  // }
 
-  fetchOpcode(): number {
-    let opcode = this.memory.rb(this.r.pc++);
+  // fetchOpcode(): number {
+  //   let opcode = this.memory.rb(this.r.pc++);
 
-    if (!(opcode in (opcodeMap as Record<number, (p: CPU) => void>))) {
-      this.stop();
-      throw (
-        "Unknown opcode " +
-        opcode.toString(16) +
-        " at address " +
-        (this.r.pc - 1).toString(16) +
-        ", stopping execution..."
-      );
-    }
+  //   if (!(opcode in (opcodeMap as Record<number, (p: CPU) => void>))) {
+  //     this.stop();
+  //     throw (
+  //       "Unknown opcode " +
+  //       opcode.toString(16) +
+  //       " at address " +
+  //       (this.r.pc - 1).toString(16) +
+  //       ", stopping execution..."
+  //     );
+  //   }
 
-    return opcode;
-  }
+  //   return opcode;
+  // }
 
   // read register
   rr(register: keyof typeof this.r) {
@@ -276,8 +276,12 @@ class CPU {
     this.enableSerial = 0;
     var data = this.memory.rb(0xff01);
     this.memory.wb(0xff02, 0);
-    this.serialHandler.out(data);
-    this.memory.wb(0xff01, this.serialHandler.in());
+    if (this.serialHandler) {
+      this.serialHandler.out(data);
+      this.memory.wb(0xff01, this.serialHandler.in());
+    } else {
+      this.memory.wb(0xff01, 0xFF);
+    }
   }
 
 //   resetDivTimer() {

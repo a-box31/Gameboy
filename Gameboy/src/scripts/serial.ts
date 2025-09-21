@@ -12,7 +12,7 @@ interface SerialInterface {
 // This handler always push the value 0xFF as an input
 class ConsoleSerial implements SerialInterface {
     current: string = '';
-    timeout: ReturnType<typeof setTimeout>;
+    timeout: ReturnType<typeof setTimeout> = null!;
     out(data: number): void {
         this.current += String.fromCharCode(data);
         if (data == 10) {
@@ -40,4 +40,5 @@ class DummySerial implements SerialInterface {
     }
 }
 
-export {ConsoleSerial, DummySerial, SerialInterface};
+export { ConsoleSerial, DummySerial };
+export type { SerialInterface };

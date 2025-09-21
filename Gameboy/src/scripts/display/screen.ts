@@ -53,7 +53,7 @@ class Screen {
     );
   }
 
-  fillImageData(buffer) {
+  fillImageData(buffer: Uint8Array) {
     for (var y = 0; y < Screen.physics.HEIGHT; y++) {
       for (var py = 0; py < this.pixelSize; py++) {
         var yOffset = (y * this.pixelSize + py) * this.canvas.width;
@@ -71,7 +71,7 @@ class Screen {
     }
   }
 
-  render(buffer) {
+  render(buffer: Uint8Array) {
     this.fillImageData(buffer);
     this.context.putImageData(this.imageData, 0, 0);
   }
