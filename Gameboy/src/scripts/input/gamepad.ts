@@ -1,4 +1,5 @@
 import { type JoypadDevice } from './input';
+import type { JoypadKey } from './keyboard';
 
 // This is the default buttons mapping for the Gamepad API
 //
@@ -24,8 +25,8 @@ class Gamepad implements JoypadDevice {
     gamepad?: globalThis.Gamepad;
     state = {A:0,B:0,START:0,SELECT:0,LEFT:0,RIGHT:0,UP:0,DOWN:0};
     pullInterval?: ReturnType<typeof setInterval>;
-    onPress?: Function;
-    onRelease?: Function;
+    onPress?: (key: JoypadKey) => void;
+    onRelease?: (key: JoypadKey) => void;
     buttonMapping: object;
 
     constructor(mapping?: object) {
@@ -34,7 +35,7 @@ class Gamepad implements JoypadDevice {
 
     // Initialize the keyboard listeners and set up the callbacks
     // for button press / release
-    init(canvas: HTMLElement, onPress: Function, onRelease: Function) {
+    init(canvas: HTMLCanvasElement, onPress: (key: JoypadKey) => void, onRelease: (key: JoypadKey) => void) {
         this.onPress = onPress;
         this.onRelease = onRelease;
 
@@ -59,8 +60,8 @@ class Gamepad implements JoypadDevice {
 
     // Check the state of the current gamepad in order to detect any press/release action
     pullState() {
-        for (let index in this.buttonMapping) {
-            let button = this.buttonMapping[index];
+        for (const index in this.buttonMapping) {
+            const button = this.buttonMapping[index];
             let oldState = this.state[button];
             this.state[button] = this.gamepad.buttons[index].pressed;
 
@@ -72,12 +73,12 @@ class Gamepad implements JoypadDevice {
         }
     }
 
-    managePress(key) {
-        this.onPress(key);
+    managePress(key: JoypadKey) {
+        this.onPress?.(key);
     }
 
-    manageRelease(key) {
-        this.onRelease(key);
+    manageRelease(key: JoypadKey) {
+        this.onRelease?.(key);
     }
 }
 

@@ -1,3 +1,4 @@
+import { Gameboy } from "./gameboy";
 import Memory from "./memory";
 // import Timer from "./timer";
 import APU from "./sound/apu";
@@ -30,7 +31,7 @@ class CPU {
 
   nextFrameTimer?: ReturnType<typeof setTimeout>;
 
-  constructor(gameboy: unknown) {
+  constructor(gameboy: Gameboy) {
     this.gameboy = gameboy;
     this.r = { A: 0, F: 0, B: 0, C: 0, D: 0, E: 0, H: 0, L: 0, pc: 0, sp: 0 };
     this.clock = { c: 0, serial: 0 };
@@ -115,15 +116,15 @@ class CPU {
     return name;
   }
 
-  // // Start the execution of the emulator
-  // run() {
-  //   if (this.usingBootRom) {
-  //     this.r.pc = 0x0000;
-  //   } else {
-  //     this.r.pc = 0x0100;
-  //   }
-  //   this.frame();
-  // }
+  // Start the execution of the emulator
+  run() {
+    if (this.usingBootRom) {
+      this.r.pc = 0x0000;
+    } else {
+      this.r.pc = 0x0100;
+    }
+    this.frame();
+  }
 
   stop() {
     clearTimeout(this.nextFrameTimer);
@@ -136,63 +137,63 @@ class CPU {
   // is considered the end of a frame
   //
   // The function is called on a regular basis with a timeout
-  // frame() {
-  //   if (!this.isPaused) {
-  //     this.nextFrameTimer = setTimeout(
-  //       this.frame.bind(this),
-  //       1000 / Screen.physics.FREQUENCY
-  //     );
-  //   }
+  frame() {
+    if (!this.isPaused) {
+      this.nextFrameTimer = setTimeout(
+        this.frame.bind(this),
+        1000 / Screen.physics.FREQUENCY
+      );
+    }
 
-  //   try {
-  //     var vblank = false;
-  //     while (!vblank) {
-  //       var oldInstrCount = this.clock.c;
-  //       if (!this.isHalted) {
-  //         let opcode = this.fetchOpcode();
-  //         (opcodeMap as Record<number, (p: CPU) => void>)[opcode](this);
-  //         this.r.F &= 0xf0; // tmp fix
+    try {
+      const vblank = false;
+      while (!vblank) {
+        const oldInstrCount = this.clock.c;
+        if (!this.isHalted) {
+          const opcode = this.fetchOpcode();
+          (opcodeMap as Record<number, (p: CPU) => void>)[opcode](this);
+          this.r.F &= 0xf0; // tmp fix
 
-  //         if (this.enableSerial) {
-  //           var instr = this.clock.c - oldInstrCount;
-  //           this.clock.serial += instr;
-  //           if (this.clock.serial >= 8 * this.SERIAL_INTERNAL_INSTR) {
-  //             this.endSerialTransfer();
-  //           }
-  //         }
-  //       } else {
-  //         this.clock.c += 4;
-  //       }
+          if (this.enableSerial) {
+            const instr = this.clock.c - oldInstrCount;
+            this.clock.serial += instr;
+            if (this.clock.serial >= 8 * this.SERIAL_INTERNAL_INSTR) {
+              this.endSerialTransfer();
+            }
+          }
+        } else {
+          this.clock.c += 4;
+        }
 
-  //       var elapsed = this.clock.c - oldInstrCount;
-  //       vblank = this.gpu.update(elapsed);
-  //       this.timer.update(elapsed);
-  //       this.input.update();
-  //       this.apu.update(elapsed);
-  //       this.checkInterrupt();
-  //     }
-  //     this.clock.c = 0;
-  //   } catch (e) {
-  //     this.gameboy.handleException(e);
-  //   }
-  // }
+        const elapsed = this.clock.c - oldInstrCount;
+        vblank = this.gpu.update(elapsed);
+        this.timer.update(elapsed);
+        this.input.update();
+        this.apu.update(elapsed);
+        this.checkInterrupt();
+      }
+      this.clock.c = 0;
+    } catch (e) {
+      this.gameboy.handleException(e);
+    }
+  }
 
-  // fetchOpcode(): number {
-  //   let opcode = this.memory.rb(this.r.pc++);
+  fetchOpcode(): number {
+    const opcode = this.memory.rb(this.r.pc++);
 
-  //   if (!(opcode in (opcodeMap as Record<number, (p: CPU) => void>))) {
-  //     this.stop();
-  //     throw (
-  //       "Unknown opcode " +
-  //       opcode.toString(16) +
-  //       " at address " +
-  //       (this.r.pc - 1).toString(16) +
-  //       ", stopping execution..."
-  //     );
-  //   }
+    if (!(opcode in (opcodeMap as Record<number, (p: CPU) => void>))) {
+      this.stop();
+      throw (
+        "Unknown opcode " +
+        opcode.toString(16) +
+        " at address " +
+        (this.r.pc - 1).toString(16) +
+        ", stopping execution..."
+      );
+    }
 
-  //   return opcode;
-  // }
+    return opcode;
+  }
 
   // read register
   rr(register: keyof typeof this.r) {

@@ -3,7 +3,7 @@ class Screen {
   canvas: HTMLCanvasElement;
   context: CanvasRenderingContext2D;
   pixelSize: number;
-  imageData: ImageData;
+  imageData?: ImageData;
 
   constructor(canvas: HTMLCanvasElement, pixelSize: number) {
     this.context = canvas.getContext("2d") as CanvasRenderingContext2D;
@@ -14,10 +14,10 @@ class Screen {
 
   // Palette colors (RGB)
   static colors = [
-    [0xff, 0xff, 0xff],
-    [0xaa, 0xaa, 0xaa],
-    [0x55, 0x55, 0x55],
-    [0x00, 0x00, 0x00],
+    [0xff, 0xff, 0xff], // white
+    [0xaa, 0xaa, 0xaa], // light gray
+    [0x55, 0x55, 0x55], // dark gray
+    [0x00, 0x00, 0x00], // black
   ];
 
   static physics = {
@@ -38,7 +38,7 @@ class Screen {
       this.canvas.width,
       this.canvas.height
     );
-    for (var i = 0; i < this.imageData.data.length; i++) {
+    for (let i = 0; i < this.imageData.data.length; i++) {
       this.imageData.data[i] = 255;
     }
   }
@@ -54,17 +54,19 @@ class Screen {
   }
 
   fillImageData(buffer: Uint8Array) {
-    for (var y = 0; y < Screen.physics.HEIGHT; y++) {
-      for (var py = 0; py < this.pixelSize; py++) {
-        var yOffset = (y * this.pixelSize + py) * this.canvas.width;
-        for (var x = 0; x < Screen.physics.WIDTH; x++) {
-          for (var px = 0; px < this.pixelSize; px++) {
-            var offset = yOffset + (x * this.pixelSize + px);
-            var v = Screen.colors[buffer[y * Screen.physics.WIDTH + x] | 0];
+    for (let y = 0; y < Screen.physics.HEIGHT; y++) {
+      for (let py = 0; py < this.pixelSize; py++) {
+        const yOffset = (y * this.pixelSize + py) * this.canvas.width;
+        for (let x = 0; x < Screen.physics.WIDTH; x++) {
+          for (let px = 0; px < this.pixelSize; px++) {
+            const offset = yOffset + (x * this.pixelSize + px);
+            const v = Screen.colors[buffer[y * Screen.physics.WIDTH + x] | 0];
             // set RGB values
-            this.imageData.data[offset * 4] = v[0];
-            this.imageData.data[offset * 4 + 1] = v[1];
-            this.imageData.data[offset * 4 + 2] = v[2];
+            if(this.imageData){
+              this.imageData.data[offset * 4] = v[0];
+              this.imageData.data[offset * 4 + 1] = v[1];
+              this.imageData.data[offset * 4 + 2] = v[2];
+            }
           }
         }
       }
@@ -73,7 +75,7 @@ class Screen {
 
   render(buffer: Uint8Array) {
     this.fillImageData(buffer);
-    this.context.putImageData(this.imageData, 0, 0);
+    this.context.putImageData(this.imageData!, 0, 0);
   }
 }
 

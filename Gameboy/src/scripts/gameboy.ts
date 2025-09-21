@@ -41,10 +41,10 @@ const defaultOptions: GameboyOptions = {
 class Gameboy {
   options: GameboyOptions;
   cpu: CPU;
-  // screen: Screen;
-  // gpu: GPU;
-//   input: Input;
-//   pad: JoypadDevice;
+  gpu: GPU;
+  screen: Screen;
+  input: Input;
+  pad: JoypadDevice;
 
   statusContainer?: HTMLElement;
   gameNameContainer?: HTMLElement;
@@ -55,19 +55,19 @@ constructor(canvas: HTMLCanvasElement, options?: Partial<GameboyOptions>) {
     this.options = Util.extend({}, defaultOptions, options);
 // 
     const cpu: CPU = new CPU(this);
-    // const screen: Screen = new Screen(canvas, this.options.zoom as number || 1);
-    // const gpu: GPU = new GPU(screen, cpu);
-    // cpu.gpu = gpu;
+    const screen: Screen = new Screen(canvas, this.options.zoom as number || 1);
+    const gpu: GPU = new GPU(screen, cpu);
+    cpu.gpu = gpu;
 
     const pad: JoypadDevice = new this.options.pad.class(this.options.pad.mapping);
     const input: Input = new Input(cpu, pad, canvas);
-    // cpu.input = input;
+    cpu.input = input;
 
     this.cpu = cpu;
-    // this.screen = screen;
-    // this.gpu = gpu;
-    // this.input = input;
-    // this.pad = pad;
+    this.screen = screen;
+    this.gpu = gpu;
+    this.input = input;
+    this.pad = pad;
 
     this.createRom(this.options.romReaders as any[]);
 

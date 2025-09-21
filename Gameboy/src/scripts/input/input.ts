@@ -30,7 +30,7 @@ class Input {
     this.state = 0;
     this.interruptQueue = [];
 
-    pad.init(canvas, this.pressKey.bind(this), this.releaseKey.bind(this));
+    pad.init(canvas as HTMLCanvasElement, this.pressKey.bind(this), this.releaseKey.bind(this));
   }
 
 pressKey(key: keyof typeof Input.keys): void {
