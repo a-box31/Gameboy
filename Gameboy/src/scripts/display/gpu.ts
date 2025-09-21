@@ -1,436 +1,437 @@
-import CPU from "../cpu";
 import Screen from "./screen";
+import CPU from "../cpu";
+import Util from "../util";
 
-// Game Boy GPU (Picture Processing Unit) implementation
 class GPU {
-  screen: Screen;
+  LCDC = 0xff40;
+  STAT = 0xff41;
+  SCY = 0xff42;
+  SCX = 0xff43;
+  LY = 0xff44;
+  LYC = 0xff45;
+  BGP = 0xff47;
+  OBP0 = 0xff48;
+  OBP1 = 0xff49;
+  WY = 0xff4a;
+  WX = 0xff4b;
+
+  OAM_START = 0xfe00;
+  OAM_END = 0xfe9f;
+  VBLANK_TIME = 70224;
+
   cpu: CPU;
-  
-  // GPU modes
-  static MODE = {
-    HBLANK: 0,
-    VBLANK: 1,
-    OAM: 2,
-    VRAM: 3
-  };
+  screen: Screen;
+  vram: Function;
+  deviceram: Function;
+  oamram: Function;
+  clock: number;
+  mode: number;
+  line: number;
+  buffer: number[];
+  tileBuffer: number[];
 
-  // Screen dimensions
-  static SCREEN_WIDTH = 160;
-  static SCREEN_HEIGHT = 144;
-  static TOTAL_SCANLINES = 154;
-
-  // Timing constants (in CPU cycles)
-  static TIMING = {
-    HBLANK: 204,    // Mode 0
-    VBLANK: 456,    // Mode 1  
-    OAM: 80,        // Mode 2
-    VRAM: 172       // Mode 3
-  };
-
-  // Current state
-  mode: number = 0;
-  modeClock: number = 0;
-  line: number = 0;
-
-  // Background scroll registers
-  scrollX: number = 0;
-  scrollY: number = 0;
-  windowX: number = 0;
-  windowY: number = 0;
-
-  // Palettes
-  backgroundPalette: number[] = [255, 192, 96, 0];
-  spritePalette0: number[] = [255, 192, 96, 0];
-  spritePalette1: number[] = [255, 192, 96, 0];
-
-  // LCD Control flags
-  lcdEnabled: boolean = true;
-  windowTileMap: boolean = false;
-  windowEnabled: boolean = false;
-  backgroundTileData: boolean = true;
-  backgroundTileMap: boolean = false;
-  spriteSize: boolean = false;
-  spritesEnabled: boolean = false;
-  backgroundEnabled: boolean = true;
-
-  constructor(screen: Screen, cpu: CPU) {
-    this.screen = screen;
+  constructor(screen, cpu) {
     this.cpu = cpu;
-    this.reset();
-  }
-
-  reset() {
-    this.mode = GPU.MODE.OAM;
-    this.modeClock = 0;
+    this.screen = screen;
+    this.vram = cpu.memory.vram.bind(cpu.memory);
+    this.deviceram = cpu.memory.deviceram.bind(cpu.memory);
+    this.oamram = cpu.memory.oamram.bind(cpu.memory);
+    this.clock = 0;
+    this.mode = 2;
     this.line = 0;
-    
-    this.scrollX = 0;
-    this.scrollY = 0;
-    this.windowX = 0;
-    this.windowY = 0;
-
-    // Default palette (white, light gray, dark gray, black)
-    this.backgroundPalette = [255, 192, 96, 0];
-    this.spritePalette0 = [255, 192, 96, 0];
-    this.spritePalette1 = [255, 192, 96, 0];
-
-    this.lcdEnabled = true;
-    this.windowTileMap = false;
-    this.windowEnabled = false;
-    this.backgroundTileData = true;
-    this.backgroundTileMap = false;
-    this.spriteSize = false;
-    this.spritesEnabled = false;
-    this.backgroundEnabled = true;
+    this.buffer = new Array(Screen.physics.WIDTH * Screen.physics.HEIGHT);
+    this.tileBuffer = new Array(8);
   }
 
-  // Update GPU state and handle mode transitions
-  update(cycles: number): boolean {
-    this.modeClock += cycles;
-    let vblank = false;
+  static tilemap = {
+    HEIGHT: 32,
+    WIDTH: 32,
+    START_0: 0x9800,
+    START_1: 0x9c00,
+    LENGTH: 0x0400, // 1024 bytes = 32*32
+  };
+
+  update(clockElapsed) {
+    this.clock += clockElapsed;
+    var vblank = false;
 
     switch (this.mode) {
-      case GPU.MODE.OAM:
-        if (this.modeClock >= GPU.TIMING.OAM) {
-          this.modeClock = 0;
-          this.mode = GPU.MODE.VRAM;
-        }
-        break;
-
-      case GPU.MODE.VRAM:
-        if (this.modeClock >= GPU.TIMING.VRAM) {
-          this.modeClock = 0;
-          this.mode = GPU.MODE.HBLANK;
-          
-          // Render the current scanline
-          this.renderScanline();
-        }
-        break;
-
-      case GPU.MODE.HBLANK:
-        if (this.modeClock >= GPU.TIMING.HBLANK) {
-          this.modeClock = 0;
+      case 0: // HBLANK
+        if (this.clock >= 204) {
+          this.clock -= 204;
           this.line++;
-
-          if (this.line === 143) {
-            // Entering VBlank
-            this.mode = GPU.MODE.VBLANK;
-            this.screen.render();
-            this.cpu.requestInterrupt(CPU.INTERRUPTS.VBLANK);
+          this.updateLY();
+          if (this.line == 144) {
+            this.setMode(1);
             vblank = true;
+            this.cpu.requestInterrupt(CPU.INTERRUPTS.VBLANK);
+            this.drawFrame();
           } else {
-            this.mode = GPU.MODE.OAM;
+            this.setMode(2);
           }
         }
         break;
-
-      case GPU.MODE.VBLANK:
-        if (this.modeClock >= GPU.TIMING.VBLANK) {
-          this.modeClock = 0;
+      case 1: // VBLANK
+        if (this.clock >= 456) {
+          this.clock -= 456;
           this.line++;
-
           if (this.line > 153) {
-            // VBlank finished, return to first line
-            this.mode = GPU.MODE.OAM;
             this.line = 0;
+            this.setMode(2);
           }
+          this.updateLY();
+        }
+
+        break;
+      case 2: // SCANLINE OAM
+        if (this.clock >= 80) {
+          this.clock -= 80;
+          this.setMode(3);
+        }
+        break;
+      case 3: // SCANLINE VRAM
+        if (this.clock >= 172) {
+          this.clock -= 172;
+          this.drawScanLine(this.line);
+          this.setMode(0);
         }
         break;
     }
-
-    // Update LCD status register
-    this.updateLCDStatus();
 
     return vblank;
   }
 
-  // Render a single scanline
-  renderScanline() {
-    if (!this.lcdEnabled) {
-      return;
-    }
-
-    // Clear the scanline
-    for (let x = 0; x < GPU.SCREEN_WIDTH; x++) {
-      this.screen.setPixel(x, this.line, this.backgroundPalette[0]);
-    }
-
-    // Render background
-    if (this.backgroundEnabled) {
-      this.renderBackground();
-    }
-
-    // Render window
-    if (this.windowEnabled && this.line >= this.windowY) {
-      this.renderWindow();
-    }
-
-    // Render sprites
-    if (this.spritesEnabled) {
-      this.renderSprites();
+  updateLY() {
+    this.deviceram(this.LY, this.line);
+    var STAT = this.deviceram(this.STAT);
+    if (this.deviceram(this.LY) == this.deviceram(this.LYC)) {
+      this.deviceram(this.STAT, STAT | (1 << 2));
+      if (STAT & (1 << 6)) {
+        this.cpu.requestInterrupt(CPU.INTERRUPTS.LCDC);
+      }
+    } else {
+      this.deviceram(this.STAT, STAT & (0xff - (1 << 2)));
     }
   }
 
-  // Render background tiles for current scanline
-  renderBackground() {
-    const tileMapBase = this.backgroundTileMap ? 0x9c00 : 0x9800;
-    const tileDataBase = this.backgroundTileData ? 0x8000 : 0x8800;
-    
-    const y = (this.line + this.scrollY) & 255;
-    const tileY = Math.floor(y / 8);
-    const pixelY = y % 8;
+  setMode(mode) {
+    this.mode = mode;
+    var newSTAT = this.deviceram(this.STAT);
+    newSTAT &= 0xfc;
+    newSTAT |= mode;
+    this.deviceram(this.STAT, newSTAT);
 
-    for (let x = 0; x < GPU.SCREEN_WIDTH; x++) {
-      const pixelX = (x + this.scrollX) & 255;
-      const tileX = Math.floor(pixelX / 8);
-      const subPixelX = pixelX % 8;
-
-      // Get tile number from tile map
-      const tileMapAddr = tileMapBase + (tileY * 32) + tileX;
-      let tileNum = this.cpu.memory.rb(tileMapAddr);
-
-      // Adjust tile number for signed addressing mode
-      if (!this.backgroundTileData && tileNum < 128) {
-        tileNum += 256;
-      }
-
-      // Get tile data
-      const tileAddr = tileDataBase + (tileNum * 16) + (pixelY * 2);
-      const lowByte = this.cpu.memory.rb(tileAddr);
-      const highByte = this.cpu.memory.rb(tileAddr + 1);
-
-      // Extract pixel value
-      const bit = 7 - subPixelX;
-      const colorId = ((highByte >> bit) & 1) << 1 | ((lowByte >> bit) & 1);
-      const color = this.backgroundPalette[colorId];
-
-      this.screen.setPixel(x, this.line, color);
-    }
-  }
-
-  // Render window tiles for current scanline
-  renderWindow() {
-    if (this.windowX > 166 || this.windowY > 143) {
-      return;
-    }
-
-    const tileMapBase = this.windowTileMap ? 0x9c00 : 0x9800;
-    const tileDataBase = this.backgroundTileData ? 0x8000 : 0x8800;
-    
-    const y = this.line - this.windowY;
-    const tileY = Math.floor(y / 8);
-    const pixelY = y % 8;
-
-    const startX = Math.max(0, this.windowX - 7);
-
-    for (let x = startX; x < GPU.SCREEN_WIDTH; x++) {
-      const windowPixelX = x - (this.windowX - 7);
-      const tileX = Math.floor(windowPixelX / 8);
-      const subPixelX = windowPixelX % 8;
-
-      // Get tile number from tile map
-      const tileMapAddr = tileMapBase + (tileY * 32) + tileX;
-      let tileNum = this.cpu.memory.rb(tileMapAddr);
-
-      // Adjust tile number for signed addressing mode
-      if (!this.backgroundTileData && tileNum < 128) {
-        tileNum += 256;
-      }
-
-      // Get tile data
-      const tileAddr = tileDataBase + (tileNum * 16) + (pixelY * 2);
-      const lowByte = this.cpu.memory.rb(tileAddr);
-      const highByte = this.cpu.memory.rb(tileAddr + 1);
-
-      // Extract pixel value
-      const bit = 7 - subPixelX;
-      const colorId = ((highByte >> bit) & 1) << 1 | ((lowByte >> bit) & 1);
-      const color = this.backgroundPalette[colorId];
-
-      this.screen.setPixel(x, this.line, color);
-    }
-  }
-
-  // Render sprites for current scanline
-  renderSprites() {
-    const spriteHeight = this.spriteSize ? 16 : 8;
-    const sprites: any[] = [];
-
-    // Collect sprites that intersect with current scanline
-    for (let i = 0; i < 40; i++) {
-      const spriteAddr = 0xfe00 + (i * 4);
-      const y = this.cpu.memory.rb(spriteAddr) - 16;
-      const x = this.cpu.memory.rb(spriteAddr + 1) - 8;
-      const tileNum = this.cpu.memory.rb(spriteAddr + 2);
-      const attributes = this.cpu.memory.rb(spriteAddr + 3);
-
-      // Check if sprite intersects with current scanline
-      if (this.line >= y && this.line < y + spriteHeight) {
-        sprites.push({
-          x: x,
-          y: y,
-          tileNum: tileNum,
-          attributes: attributes
-        });
-      }
-    }
-
-    // Sort sprites by X position (Game Boy renders from right to left)
-    sprites.sort((a, b) => a.x - b.x);
-
-    // Render up to 10 sprites per scanline (Game Boy limitation)
-    for (let i = 0; i < Math.min(sprites.length, 10); i++) {
-      this.renderSprite(sprites[i], spriteHeight);
-    }
-  }
-
-  // Render a single sprite
-  renderSprite(sprite: any, spriteHeight: number) {
-    const palette = (sprite.attributes & 0x10) ? this.spritePalette1 : this.spritePalette0;
-    const flipX = (sprite.attributes & 0x20) !== 0;
-    const flipY = (sprite.attributes & 0x40) !== 0;
-    const priority = (sprite.attributes & 0x80) === 0;
-
-    let pixelY = this.line - sprite.y;
-    if (flipY) {
-      pixelY = spriteHeight - 1 - pixelY;
-    }
-
-    const tileAddr = 0x8000 + (sprite.tileNum * 16) + (pixelY * 2);
-    const lowByte = this.cpu.memory.rb(tileAddr);
-    const highByte = this.cpu.memory.rb(tileAddr + 1);
-
-    for (let pixelX = 0; pixelX < 8; pixelX++) {
-      const x = sprite.x + pixelX;
-      
-      if (x < 0 || x >= GPU.SCREEN_WIDTH) {
-        continue;
-      }
-
-      let bit = flipX ? pixelX : 7 - pixelX;
-      const colorId = ((highByte >> bit) & 1) << 1 | ((lowByte >> bit) & 1);
-
-      // Color 0 is transparent for sprites
-      if (colorId === 0) {
-        continue;
-      }
-
-      // Check sprite priority
-      if (!priority) {
-        const bgColor = this.screen.getPixel(x, this.line);
-        if (bgColor !== this.backgroundPalette[0]) {
-          continue;
-        }
-      }
-
-      const color = palette[colorId];
-      this.screen.setPixel(x, this.line, color);
-    }
-  }
-
-  // Update LCD status register based on current state
-  updateLCDStatus() {
-    let status = this.cpu.memory.rb(0xff41) & 0xf8; // Keep upper 5 bits
-    
-    // Set mode bits
-    status |= this.mode;
-
-    // Set LYC=LY flag
-    const lyc = this.cpu.memory.rb(0xff45);
-    if (this.line === lyc) {
-      status |= 0x04;
-      
-      // Check if LYC=LY interrupt is enabled
-      if (status & 0x40) {
+    if (mode < 3) {
+      if (newSTAT & (1 << (3 + mode))) {
         this.cpu.requestInterrupt(CPU.INTERRUPTS.LCDC);
       }
     }
-
-    // Update LY register
-    this.cpu.memory.wb(0xff44, this.line);
-    this.cpu.memory.wb(0xff41, status);
   }
 
-  // Handle writes to LCD control register
-  writeLCDC(value: number) {
-    const oldLcdEnabled = this.lcdEnabled;
-    
-    this.lcdEnabled = (value & 0x80) !== 0;
-    this.windowTileMap = (value & 0x40) !== 0;
-    this.windowEnabled = (value & 0x20) !== 0;
-    this.backgroundTileData = (value & 0x10) !== 0;
-    this.backgroundTileMap = (value & 0x08) !== 0;
-    this.spriteSize = (value & 0x04) !== 0;
-    this.spritesEnabled = (value & 0x02) !== 0;
-    this.backgroundEnabled = (value & 0x01) !== 0;
-
-    // If LCD was turned off, reset GPU state
-    if (oldLcdEnabled && !this.lcdEnabled) {
-      this.mode = GPU.MODE.HBLANK;
-      this.modeClock = 0;
-      this.line = 0;
-      this.screen.clear();
+  // Push one scanline into the main buffer
+  drawScanLine(line) {
+    var LCDC = this.deviceram(this.LCDC);
+    var enable = Util.readBit(LCDC, 7);
+    if (enable) {
+      var lineBuffer = new Array(Screen.physics.WIDTH);
+      this.drawBackground(LCDC, line, lineBuffer);
+      this.drawSprites(LCDC, line, lineBuffer);
+      // TODO draw a line for the window here too
     }
   }
 
-  // Handle writes to palette registers
-  writeBGP(value: number) {
-    this.backgroundPalette[0] = this.getShade(value & 0x03);
-    this.backgroundPalette[1] = this.getShade((value >> 2) & 0x03);
-    this.backgroundPalette[2] = this.getShade((value >> 4) & 0x03);
-    this.backgroundPalette[3] = this.getShade((value >> 6) & 0x03);
+  drawFrame() {
+    var LCDC = this.deviceram(this.LCDC);
+    var enable = Util.readBit(LCDC, 7);
+    if (enable) {
+      //this.drawSprites(LCDC);
+      this.drawWindow(LCDC);
+    }
+    this.screen.render(this.buffer);
   }
 
-  writeOBP0(value: number) {
-    this.spritePalette0[0] = this.getShade(value & 0x03);
-    this.spritePalette0[1] = this.getShade((value >> 2) & 0x03);
-    this.spritePalette0[2] = this.getShade((value >> 4) & 0x03);
-    this.spritePalette0[3] = this.getShade((value >> 6) & 0x03);
+  drawBackground(LCDC, line, lineBuffer) {
+    if (!Util.readBit(LCDC, 0)) {
+      return;
+    }
+
+    var mapStart = Util.readBit(LCDC, 3)
+      ? GPU.tilemap.START_1
+      : GPU.tilemap.START_0;
+
+    var dataStart,
+      signedIndex = false;
+    if (Util.readBit(LCDC, 4)) {
+      dataStart = 0x8000;
+    } else {
+      dataStart = 0x8800;
+      signedIndex = true;
+    }
+
+    var bgx = this.deviceram(this.SCX);
+    var bgy = this.deviceram(this.SCY);
+    var tileLine = (line + bgy) & 7;
+
+    // browse BG tilemap for the line to render
+    var tileRow = (((bgy + line) / 8) | 0) & 0x1f;
+    var firstTile = ((bgx / 8) | 0) + 32 * tileRow;
+    var lastTile = firstTile + Screen.physics.WIDTH / 8 + 1;
+    if ((lastTile & 0x1f) < (firstTile & 0x1f)) {
+      lastTile -= 32;
+    }
+    var x = (firstTile & 0x1f) * 8 - bgx; // x position of the first tile's leftmost pixel
+    for (
+      var i = firstTile;
+      i != lastTile;
+      i++, (i & 0x1f) == 0 ? (i -= 32) : null
+    ) {
+      var tileIndex = this.vram(i + mapStart);
+
+      if (signedIndex) {
+        tileIndex = Util.getSignedValue(tileIndex) + 128;
+      }
+
+      var tileData = this.readTileData(tileIndex, dataStart);
+
+      this.drawTileLine(tileData, tileLine);
+      this.copyBGTileLine(lineBuffer, this.tileBuffer, x);
+      x += 8;
+    }
+
+    this.copyLineToBuffer(lineBuffer, line);
   }
 
-  writeOBP1(value: number) {
-    this.spritePalette1[0] = this.getShade(value & 0x03);
-    this.spritePalette1[1] = this.getShade((value >> 2) & 0x03);
-    this.spritePalette1[2] = this.getShade((value >> 4) & 0x03);
-    this.spritePalette1[3] = this.getShade((value >> 6) & 0x03);
-  }
-
-  // Convert Game Boy shade (0-3) to RGB value
-  private getShade(shade: number): number {
-    switch (shade) {
-      case 0: return 255; // White
-      case 1: return 192; // Light gray
-      case 2: return 96;  // Dark gray
-      case 3: return 0;   // Black
-      default: return 255;
+  // Copy a tile line from a tileBuffer to a line buffer, at a given x position
+  copyBGTileLine(lineBuffer, tileBuffer, x) {
+    // copy tile line to buffer
+    for (var k = 0; k < 8; k++, x++) {
+      if (x < 0 || x >= Screen.physics.WIDTH) continue;
+      lineBuffer[x] = tileBuffer[k];
     }
   }
 
-  // Handle scroll register writes
-  writeScrollY(value: number) {
-    this.scrollY = value;
+  // Copy a scanline into the main buffer
+  copyLineToBuffer(lineBuffer, line) {
+    var bgPalette = GPU.getPalette(this.deviceram(this.BGP));
+
+    for (var x = 0; x < Screen.physics.WIDTH; x++) {
+      var color = lineBuffer[x];
+      this.drawPixel(x, line, bgPalette[color]);
+    }
   }
 
-  writeScrollX(value: number) {
-    this.scrollX = value;
+  // Write a line of a tile (8 pixels) into a buffer array
+  drawTileLine(tileData, line: number, xflip = 0, yflip = 0) {
+    var l = yflip ? 7 - line : line;
+    var byteIndex = l * 2;
+    var b1 = tileData[byteIndex++];
+    var b2 = tileData[byteIndex++];
+
+    var offset = 8;
+    for (var pixel = 0; pixel < 8; pixel++) {
+      offset--;
+      var mask = 1 << offset;
+      var colorValue = ((b1 & mask) >> offset) + ((b2 & mask) >> offset) * 2;
+      var p = xflip ? offset : pixel;
+      this.tileBuffer[p] = colorValue;
+    }
   }
 
-  writeWindowY(value: number) {
-    this.windowY = value;
+  drawSprites(LCDC, line, bgLineBuffer) {
+    if (!Util.readBit(LCDC, 1)) {
+      return;
+    }
+    var spriteHeight = Util.readBit(LCDC, 2) ? 16 : 8;
+
+    var sprites = new Array();
+    for (
+      var i = this.OAM_START;
+      i < this.OAM_END && sprites.length < 10;
+      i += 4
+    ) {
+      var y = this.oamram(i);
+      var x = this.oamram(i + 1);
+      var index = this.oamram(i + 2);
+      if (spriteHeight === 16) index = index & 0xfe;
+      var flags = this.oamram(i + 3);
+
+      if (y - 16 > line || y - 16 < line - spriteHeight) {
+        continue;
+      }
+      sprites.push({ x: x, y: y, index: index, flags: flags });
+    }
+    sprites.sort((a, b) => a.x - b.x);
+
+    if (sprites.length == 0) return;
+
+    // cache object to store read tiles from this frame
+    var cacheTile = {};
+    var spriteLineBuffer = new Array(Screen.physics.WIDTH);
+
+    for (var i = 0; i < sprites.length; i++) {
+      var sprite = sprites[i];
+      var tileLine = line - sprite.y + 16;
+      var paletteNumber = Util.readBit(sprite.flags, 4);
+      var xflip = Util.readBit(sprite.flags, 5);
+      var yflip = Util.readBit(sprite.flags, 6);
+      var priority = Util.readBit(sprite.flags, 7);
+      var tileData =
+        cacheTile[sprite.index] ||
+        (cacheTile[sprite.index] = this.readTileData(
+          sprite.index,
+          0x8000,
+          spriteHeight * 2
+        ));
+      this.drawTileLine(tileData, tileLine, xflip, yflip);
+      this.copySpriteTileLine(
+        spriteLineBuffer,
+        this.tileBuffer,
+        sprite.x - 8,
+        paletteNumber,
+        priority,
+        bgLineBuffer
+      );
+    }
+
+    this.copySpriteLineToBuffer(spriteLineBuffer, line);
   }
 
-  writeWindowX(value: number) {
-    this.windowX = value;
+  // Copy a tile line from a tileBuffer to a line buffer, at a given x position
+  copySpriteTileLine = function (
+    lineBuffer,
+    tileBuffer,
+    x,
+    palette,
+    priority,
+    bgLineBuffer
+  ) {
+    // copy tile line to buffer
+    for (var k = 0; k < 8; k++, x++) {
+      if (x < 0 || x >= Screen.physics.WIDTH || tileBuffer[k] == 0) continue;
+      if (lineBuffer[x]) continue;
+      if (priority === 1 && bgLineBuffer[x] > 0) {
+        lineBuffer[x] = { color: 0, palette: palette };
+        continue;
+      }
+      lineBuffer[x] = { color: tileBuffer[k], palette: palette };
+    }
+  };
+
+  // Copy a sprite scanline into the main buffer
+  copySpriteLineToBuffer(spriteLineBuffer, line) {
+    var spritePalettes = {};
+    spritePalettes[0] = GPU.getPalette(this.deviceram(this.OBP0));
+    spritePalettes[1] = GPU.getPalette(this.deviceram(this.OBP1));
+
+    for (var x = 0; x < Screen.physics.WIDTH; x++) {
+      if (!spriteLineBuffer[x]) continue;
+      var color = spriteLineBuffer[x].color;
+      if (color === 0) continue;
+      var paletteNumber = spriteLineBuffer[x].palette;
+      this.drawPixel(x, line, spritePalettes[paletteNumber][color]);
+    }
   }
 
-  // Get current GPU mode
-  getMode(): number {
-    return this.mode;
+  drawTile(tileData, x, y, buffer, bufferWidth, xflip = 0, yflip = 0) {
+    var byteIndex = 0;
+    for (var line = 0; line < 8; line++) {
+      var l = yflip ? 7 - line : line;
+      var b1 = tileData[byteIndex++];
+      var b2 = tileData[byteIndex++];
+
+      for (var pixel = 0; pixel < 8; pixel++) {
+        var mask = 1 << (7 - pixel);
+        var colorValue =
+          ((b1 & mask) >> (7 - pixel)) + ((b2 & mask) >> (7 - pixel)) * 2;
+        var p = xflip ? 7 - pixel : pixel;
+        var bufferIndex = x + p + (y + l) * bufferWidth;
+        buffer[bufferIndex] = colorValue;
+      }
+    }
   }
 
-  // Get current scanline
-  getCurrentLine(): number {
-    return this.line;
+  // get an array of tile bytes data (16 entries for 8*8px)
+  readTileData(tileIndex: number, dataStart: number, tileSize?: number) {
+    tileSize = tileSize || 0x10; // 16 bytes / tile by default (8*8 px)
+    var tileData = new Array();
+
+    var tileAddressStart = dataStart + tileIndex * 0x10;
+    for (var i = tileAddressStart; i < tileAddressStart + tileSize; i++) {
+      tileData.push(this.vram(i));
+    }
+
+    return tileData;
+  }
+
+  drawWindow(LCDC) {
+    if (!Util.readBit(LCDC, 5)) {
+      return;
+    }
+
+    var buffer = new Array(256 * 256);
+    var mapStart = Util.readBit(LCDC, 6)
+      ? GPU.tilemap.START_1
+      : GPU.tilemap.START_0;
+
+    var dataStart,
+      signedIndex = false;
+    if (Util.readBit(LCDC, 4)) {
+      dataStart = 0x8000;
+    } else {
+      dataStart = 0x8800;
+      signedIndex = true;
+    }
+
+    // browse Window tilemap
+    for (var i = 0; i < GPU.tilemap.LENGTH; i++) {
+      var tileIndex = this.vram(i + mapStart);
+
+      if (signedIndex) {
+        tileIndex = Util.getSignedValue(tileIndex) + 128;
+      }
+
+      var tileData = this.readTileData(tileIndex, dataStart);
+      var x = i % GPU.tilemap.WIDTH;
+      var y = (i / GPU.tilemap.WIDTH) | 0;
+      this.drawTile(tileData, x * 8, y * 8, buffer, 256);
+    }
+
+    var wx = this.deviceram(this.WX) - 7;
+    var wy = this.deviceram(this.WY);
+    for (
+      var x = Math.max(0, -wx);
+      x < Math.min(Screen.physics.WIDTH, Screen.physics.WIDTH - wx);
+      x++
+    ) {
+      for (
+        var y = Math.max(0, -wy);
+        y < Math.min(Screen.physics.HEIGHT, Screen.physics.HEIGHT - wy);
+        y++
+      ) {
+        var color = buffer[(x & 255) + (y & 255) * 256];
+        this.drawPixel(x + wx, y + wy, color);
+      }
+    }
+  }
+
+  drawPixel(x, y, color) {
+    this.buffer[y * 160 + x] = color;
+  }
+
+  getPixel(x, y) {
+    return this.buffer[y * 160 + x];
+  }
+
+  // Get the palette mapping from a given palette byte as stored in memory
+  // A palette will map a tile color to a final palette color index
+  // used with Screen.colors to get a shade of grey
+  static getPalette(paletteByte) {
+    let palette: number[] = [];
+    for (var i = 0; i < 8; i += 2) {
+      let shade = (paletteByte & (3 << i)) >> i;
+      palette.push(shade);
+    }
+    return palette;
   }
 }
 
