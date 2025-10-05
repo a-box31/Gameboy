@@ -27,15 +27,20 @@ class Gamepad implements JoypadDevice {
     pullInterval?: ReturnType<typeof setInterval>;
     onPress?: (key: JoypadKey) => void;
     onRelease?: (key: JoypadKey) => void;
-    buttonMapping: object;
+    buttonMapping: { [key: string]: string };
 
-    constructor(mapping?: object) {
+    constructor(mapping?: { [key: string]: string }) {
         this.buttonMapping = mapping || standardMapping;
     }
 
     // Initialize the keyboard listeners and set up the callbacks
     // for button press / release
+
     init(canvas: HTMLCanvasElement, onPress: (key: JoypadKey) => void, onRelease: (key: JoypadKey) => void) {
+
+        canvas.setAttribute("tabindex", "0"); // make it focusable
+        canvas.focus(); // focus it to get key events
+
         this.onPress = onPress;
         this.onRelease = onRelease;
 
@@ -44,8 +49,10 @@ class Gamepad implements JoypadDevice {
             self.gamepad = e.gamepad;
             self.activatePull();
         });
-        window.addEventListener('gamepaddisconnected', function(e) {
+        window.addEventListener('gamepaddisconnected', function() {
             self.deactivatePull();
+            self.resetState(); // Reset the state when the gamepad is disconnected
+            self.gamepad = undefined;
         });
     }
 
@@ -58,17 +65,21 @@ class Gamepad implements JoypadDevice {
         clearInterval(this.pullInterval);
     }
 
+    resetState() {
+        this.state = {A:0,B:0,START:0,SELECT:0,LEFT:0,RIGHT:0,UP:0,DOWN:0};
+    }
+
     // Check the state of the current gamepad in order to detect any press/release action
     pullState() {
+
         for (const index in this.buttonMapping) {
             const button = this.buttonMapping[index];
-            let oldState = this.state[button];
-            this.state[button] = this.gamepad.buttons[index].pressed;
-
-            if (this.state[button] == 1 && oldState == 0) {
-                this.managePress(button);
-            } else if (this.state[button] == 0 && oldState == 1) {
-                this.manageRelease(button);
+            let oldState = this.state[button as keyof typeof this.state];
+            this.state[button as keyof typeof this.state] = Number(this.gamepad?.buttons[Number(index)]?.pressed);
+            if (this.state[button as keyof typeof this.state] == 1 && oldState == 0) {
+                this.managePress(button as JoypadKey);
+            } else if (this.state[button as keyof typeof this.state] == 0 && oldState == 1) {
+                this.manageRelease(button as JoypadKey);
             }
         }
     }
@@ -79,6 +90,7 @@ class Gamepad implements JoypadDevice {
 
     manageRelease(key: JoypadKey) {
         this.onRelease?.(key);
+
     }
 }
 

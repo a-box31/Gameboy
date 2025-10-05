@@ -23,7 +23,7 @@ class Input {
   P1: number;
   state: number;
   interruptQueue: Array<{ ly: number; key: keyof typeof Input.keys }>;
-  constructor(cpu: CPU, pad: JoypadDevice, canvas: HTMLElement) {
+  constructor(cpu: CPU, pad: JoypadDevice, canvas: HTMLCanvasElement) {
     this.cpu = cpu;
     this.memory = cpu.memory;
     this.P1 = 0xff00;
